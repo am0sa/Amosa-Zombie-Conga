@@ -26,12 +26,17 @@ class GameScene: SKScene {
     let catMovePointsPerSec:CGFloat = 480.0
     var lives = 5
     var catCount: Int = 0
+    
+    var catsCollectedInARow: Int = 0
+    var gameTimer: TimeInterval = 30.00
+    
     var gameOver = false
     let cameraNode = SKCameraNode()
     let cameraMovePointsPerSec: CGFloat = 200.0
     
     let livesLabel = SKLabelNode(fontNamed: "Glimstick")
     let catsLabel = SKLabelNode(fontNamed: "Glimstick")
+    let timerLabel = SKLabelNode(fontNamed: "Glimstick")
 
     var cameraRect: CGRect {
         let x = cameraNode.position.x - size.width/2 + (size.width - playableRect.width)/2
@@ -77,13 +82,8 @@ class GameScene: SKScene {
             addChild(background)
         }
 
-//        let mySize = background.size
-//        print("Size: \(mySize)")
-        
         zombie.position = CGPoint(x: 400, y: 400)
         addChild(zombie)
-        
-        //zombie.run(SKAction.repeatForever(zombieAnimation))
         
         run(SKAction.repeatForever(SKAction.sequence([SKAction.run() {[weak self] in
             self?.spawnEnemy()
@@ -93,7 +93,6 @@ class GameScene: SKScene {
             self?.spawnCat()
             }, SKAction.wait(forDuration: 1.0)])))
         
-//        debugDrawPlayableArea()
         playBackgroundMusic(filename: "backgroundMusic.mp3")
         
         addChild(cameraNode)
@@ -108,6 +107,15 @@ class GameScene: SKScene {
         livesLabel.verticalAlignmentMode = .bottom
         livesLabel.position = CGPoint(x: -playableRect.size.width/2 + CGFloat(200), y: -playableRect.size.height/2 + CGFloat(200))
         cameraNode.addChild(livesLabel)
+        
+        timerLabel.text = "Time: X"
+        timerLabel.fontColor = SKColor.black
+        timerLabel.zPosition = 150
+        timerLabel.fontSize = 100
+        timerLabel.horizontalAlignmentMode = .center
+        timerLabel.verticalAlignmentMode = .top
+        timerLabel.position = CGPoint(x: 0.0, y: playableRect.size.height/2 - CGFloat(200))
+        cameraNode.addChild(timerLabel)
         
         catsLabel.text = "Cats: X"
         catsLabel.fontColor = SKColor.black
@@ -126,21 +134,12 @@ class GameScene: SKScene {
             dt = 0
         }
         
+        gameTimer -= dt
+        
         lastUpdateTime = currentTime
-      //  print("\(dt*1000) milliseconds since last update")
-//
-//        if let lastTouchLocation = lastTouchLocation {
-//            let diff = lastTouchLocation - zombie.position
-//
-//            if diff.length() <= zombieMovePointsPerSec * CGFloat(dt) {
-//                zombie.position = lastTouchLocation
-//                velocity = CGPoint.zero
-//                stopZombieAnimation()
-//            } else{
-                move(sprite: zombie, velocity: velocity)
-                rotate(sprite: zombie, direction: velocity, rotateRadiansPerSec: zombieRotateRadiansPerSec)
-//            }
-//        }
+        move(sprite: zombie, velocity: velocity)
+        rotate(sprite: zombie, direction: velocity, rotateRadiansPerSec: zombieRotateRadiansPerSec)
+
         
         boundsCheckZombie()
 //        checkCollisions()
@@ -148,21 +147,34 @@ class GameScene: SKScene {
         moveCamera()
         livesLabel.text = "Lives: \(lives)"
         catsLabel.text = "Cats: \(catCount)"
+        timerLabel.text = "Time: \(Int(gameTimer))"
+        
+        if catsCollectedInARow >= 6{
+            lives += 1
+            catsCollectedInARow = 0
+        }
+        
+        if gameTimer <= 0 && !gameOver{
+            GameOver()
+        }
         
         if lives <= 0 && !gameOver {
-            gameOver = true
-            print("You Lose!")
-            backgroundMusicPlayer.stop()
-            
-            let gameOverScene = GameOverScene(size: size, won: false)
-            gameOverScene.scaleMode = scaleMode
-            
-            let reveal = SKTransition.flipHorizontal(withDuration: 0.5)
-            
-            view?.presentScene(gameOverScene, transition: reveal)
+            GameOver()
         }
     }
     
+    func GameOver() {
+        gameOver = true
+        
+        backgroundMusicPlayer.stop()
+        
+        let gameOverScene = GameOverScene(size: size, won: false)
+        gameOverScene.scaleMode = scaleMode
+        
+        let reveal = SKTransition.flipHorizontal(withDuration: 0.5)
+        
+        view?.presentScene(gameOverScene, transition: reveal)
+    }
     
     override func didEvaluateActions() {
         checkCollisions()
@@ -313,6 +325,7 @@ class GameScene: SKScene {
         cat.run(turnGreen)
         
         run(catCollisionSound)
+        catsCollectedInARow += 1
     }
     
     func zombieHit(enemy: SKSpriteNode){
@@ -333,6 +346,7 @@ class GameScene: SKScene {
         run(enemyCollisionSound)
         loseCat()
         lives -= 1
+        catsCollectedInARow = 0
     }
     
     func checkCollisions(){
